@@ -42,23 +42,31 @@ namespace Dynasor.NetCore
             var namespaces = new HashSet<string>();
             references = new HashSet<MetadataReference>();
 
+            var location = default(string);
             foreach (var a in AppDomain.CurrentDomain.GetAssemblies())
             {
-                if (!string.IsNullOrWhiteSpace(a.Location) && references.Add(MetadataReference.CreateFromFile(a.Location)))
+                try
+                {
+                    location = a.Location;
+                }
+                catch (NotSupportedException)
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(location) && references.Add(MetadataReference.CreateFromFile(location)))
                 {
                     var nss = from type in a.GetTypes()
                               let ns = type.Namespace
                               where
-                                  !string.IsNullOrWhiteSpace(ns)
-                                  && type.GetCustomAttribute<CompilerGeneratedAttribute>() == null
-                                  && !type.IsPublic
-                                  && !ns.Contains("Internal", StringComparison.CurrentCultureIgnoreCase)
+                                  type.IsPublic &&
+                                  !ns.Contains("Internal", StringComparison.CurrentCultureIgnoreCase)
                               select ns;
 
                     foreach (var ns in nss)
                     {
                         if (namespaces.Add(ns))
-                            sb.Append(this.Using(ns));
+                            sb.Append(Using(ns));
                     }
                 }
             }

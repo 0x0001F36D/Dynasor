@@ -33,6 +33,9 @@ namespace Dynasor.NetCore
 
         static void Main(string[] args)
         {
+            var add = Dynasor.CompileWithoutCache("int add(int a, int b)=>a+b;");
+            Console.WriteLine(add(1, 2));
+
             var code = @"
 void o(object o)
     => Console.WriteLine(o);";

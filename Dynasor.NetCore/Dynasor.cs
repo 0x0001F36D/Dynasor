@@ -9,6 +9,8 @@ namespace Dynasor.NetCore
     using System.Diagnostics;
     using System.IO;
     using System.Linq;
+    using System.Reflection;
+    using System.Reflection.Emit;
     using System.Runtime.Loader;
     using System.Text;
 
@@ -32,15 +34,23 @@ namespace Dynasor.NetCore
             var namespaces = new HashSet<string>();
             references = new HashSet<MetadataReference>();
 
+            var location = default(string);
             foreach (var a in AppDomain.CurrentDomain.GetAssemblies())
             {
-                if (!string.IsNullOrWhiteSpace(a.Location) && references.Add(MetadataReference.CreateFromFile(a.Location)))
+                try
+                {
+                    location = a.Location;
+                }
+                catch (NotSupportedException)
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(location) && references.Add(MetadataReference.CreateFromFile(location)))
                 {
                     var nss = from type in a.GetTypes()
                               let ns = type.Namespace
                               where
-                                  !string.IsNullOrWhiteSpace(ns)&& 
-                                  //type.GetCustomAttribute<CompilerGeneratedAttribute>() == null&&
                                   type.IsPublic && 
                                   !ns.Contains("Internal", StringComparison.CurrentCultureIgnoreCase)
                               select ns;
@@ -55,6 +65,82 @@ namespace Dynasor.NetCore
             namespaces.Clear();
         }
         
+        public static dynamic CompileWithoutCache(string code)
+        {
+            var sb = new StringBuilder();
+
+            AppendRefs(sb, out var references);
+            var className = RandomString();
+            sb.Append($"public static class {className}")
+                .Append("{")
+                .AppendLine("public static " + code)
+                .Append("}");
+
+
+            var tree = CSharpSyntaxTree.ParseText(sb.ToString());
+            var root = tree.GetCompilationUnitRoot();
+            var junk = Path.GetRandomFileName();
+            var compilation = CSharpCompilation.Create(junk, new[] { tree }, references, s_options);
+
+            using (var binaryStream = new MemoryStream())
+            {
+                var emitResult = compilation.Emit(binaryStream);
+                if (emitResult.Success)
+                {
+                    try
+                    {
+
+                        binaryStream.Seek(0, SeekOrigin.Begin);
+                        var assembly = AssemblyLoadContext.Default.LoadFromStream(binaryStream);
+                        var type = assembly.GetType(className, true);
+                        var mds = root.DescendantNodes().OfType<MethodDeclarationSyntax>().First();
+                        var methodName = mds.Identifier.ToString();
+                        var mi = type.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static);
+
+
+                        var asmb = AssemblyBuilder.DefineDynamicAssembly(assembly.GetName(), AssemblyBuilderAccess.Run);
+                        var modb = asmb.DefineDynamicModule("#");
+                        var typeTemplate = modb.DefineType($"#{Guid.NewGuid()}", TypeAttributes.Sealed | TypeAttributes.Public, typeof(MulticastDelegate));
+                        var ctor = typeTemplate.DefineConstructor(MethodAttributes.RTSpecialName | MethodAttributes.HideBySig | MethodAttributes.Public, CallingConventions.Standard, new[] { typeof(object), typeof(IntPtr) });
+                        ctor.SetImplementationFlags(MethodImplAttributes.CodeTypeMask);
+
+                        var delegateParameters = Array.ConvertAll(mi.GetParameters(), x => x.ParameterType);
+
+                        var invoke = typeTemplate.DefineMethod("Invoke", MethodAttributes.Virtual | MethodAttributes.HideBySig | MethodAttributes.Public, mi.ReturnType, delegateParameters);
+                        invoke.SetImplementationFlags(MethodImplAttributes.CodeTypeMask);
+                        
+                        for (int i = delegateParameters.Length; i > 0;)
+                            invoke.DefineParameter(i--, ParameterAttributes.None, delegateParameters[i].Name);
+                        
+                        var delegateType = typeTemplate.CreateType();
+
+
+                        var dele = Delegate.CreateDelegate(delegateType, type, methodName, false, true);
+
+                        return dele;
+                    }
+                    catch (Exception e)
+                    {
+
+                        throw e;
+                    }
+                }
+                else
+                {
+                    var failures = emitResult.Diagnostics.Where(diagnostic =>
+                            diagnostic.IsWarningAsError ||
+                            diagnostic.Severity == DiagnosticSeverity.Error).ToArray();
+
+                    Debug.WriteLine("Error:");
+                    foreach (var f in failures)
+                    {
+                        Debug.WriteLine(f);
+                    }
+                    throw new CompilationException(failures);
+                }
+            }
+        }
+
 
         public static T CompileWithoutCache<T>(string code)
             where T : Delegate
