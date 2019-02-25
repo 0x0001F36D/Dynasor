@@ -22,6 +22,8 @@ namespace Dynasor.NetCore
 
         private string Using(string ns)
         {
+            if (string.IsNullOrWhiteSpace(ns))
+                return string.Empty;
             return $"using {ns};";
         }
 
@@ -41,33 +43,25 @@ namespace Dynasor.NetCore
         {
             var namespaces = new HashSet<string>();
             references = new HashSet<MetadataReference>();
-
-            var location = default(string);
-            foreach (var a in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                try
-                {
-                    location = a.Location;
-                }
-                catch (NotSupportedException)
-                {
+            
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            { 
+                if (assembly.IsDynamic)
                     continue;
-                }
 
-                if (!string.IsNullOrWhiteSpace(location) && references.Add(MetadataReference.CreateFromFile(location)))
+                if (!string.IsNullOrWhiteSpace(assembly.Location) && references.Add(MetadataReference.CreateFromFile(assembly.Location)))
                 {
-                    var nss = from type in a.GetTypes()
-                              let ns = type.Namespace
+                    var nss = from type in assembly.GetTypes()
+                              let 
+                                ns = type.Namespace
                               where
                                   type.IsPublic &&
-                                  !ns.Contains("Internal", StringComparison.CurrentCultureIgnoreCase)
+                                  !ns.Contains("Internal", StringComparison.CurrentCultureIgnoreCase) &&
+                                  namespaces.Add(ns)
                               select ns;
 
                     foreach (var ns in nss)
-                    {
-                        if (namespaces.Add(ns))
-                            sb.Append(Using(ns));
-                    }
+                        sb.Append(Using(ns));
                 }
             }
             namespaces.Clear();
@@ -75,20 +69,19 @@ namespace Dynasor.NetCore
 
         private T _cache;
         
-        public T Compile()
+        public T Compile(bool throwOnCompileFailure = false)
         {
             if (this._cache is T t)
                 return t;
              
             var sb = new StringBuilder();
 
-            this.AppendRefs(sb, out var references);
+            this.AppendRefs(sb, out var references); 
             var className = this.RandomString();
             sb.Append($"public static class {className}")
                 .Append("{")
                 .AppendLine("public static " + this._code)
-                .Append("}");
-
+                .Append("}"); 
 
             var tree = CSharpSyntaxTree.ParseText(sb.ToString());
             var root = tree.GetCompilationUnitRoot();
@@ -108,13 +101,11 @@ namespace Dynasor.NetCore
                         var type = assembly.GetType(className, true);
                         var mds = root.DescendantNodes().OfType<MethodDeclarationSyntax>().First();
                         var methodName = mds.Identifier.ToString();
-                        this._cache = Delegate.CreateDelegate(typeof(T), type, methodName, false, true) as T;
-
+                        this._cache = Delegate.CreateDelegate(typeof(T), type, methodName, false, true) as T; 
                         return this._cache;
                     }
                     catch (Exception e)
                     {
-
                         throw e;
                     }
                 }
@@ -129,9 +120,11 @@ namespace Dynasor.NetCore
                     {
                         Debug.WriteLine(f);
                     }
-                    throw new CompilationException(failures);
+
+                    return throwOnCompileFailure ? throw new CompilationException(failures) : default(T);
                 }
             }
+
         }
     }
 }
