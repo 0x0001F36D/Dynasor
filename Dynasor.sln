@@ -5,6 +5,8 @@ VisualStudioVersion = 15.0.28010.2036
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dynasor.NetCore", "Dynasor.NetCore\Dynasor.NetCore.csproj", "{DBEC4066-B57F-48B3-B1D6-9CD956414C4D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dynasor.NetCore.Test", "Dynasor.NetCore.Test\Dynasor.NetCore.Test.csproj", "{5296C505-B56E-4FAC-A9E8-1C51820A4CE4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{DBEC4066-B57F-48B3-B1D6-9CD956414C4D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DBEC4066-B57F-48B3-B1D6-9CD956414C4D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DBEC4066-B57F-48B3-B1D6-9CD956414C4D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5296C505-B56E-4FAC-A9E8-1C51820A4CE4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5296C505-B56E-4FAC-A9E8-1C51820A4CE4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5296C505-B56E-4FAC-A9E8-1C51820A4CE4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5296C505-B56E-4FAC-A9E8-1C51820A4CE4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

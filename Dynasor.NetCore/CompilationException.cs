@@ -5,9 +5,9 @@ namespace Dynasor.NetCore
     using System;
     using System.Runtime.Serialization;
      
-    internal class CompilationException : Exception
+    public sealed class CompilationException : Exception
     {
-        public CompilationException(Diagnostic[] failures)
+        internal CompilationException(Diagnostic[] failures)
         {
             this.Failures = failures;
         }

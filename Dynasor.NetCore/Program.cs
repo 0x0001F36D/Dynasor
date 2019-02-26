@@ -7,11 +7,11 @@ using System.Linq;
 using System.Reflection;
 namespace Dynasor.NetCore
 {
-    public class Test
+    public class SimpleTest
     {
         private string _name;
 
-        public Test(string name)
+        public SimpleTest(string name)
         {
             this._name = name;
         }
@@ -27,7 +27,7 @@ namespace Dynasor.NetCore
     class Program
     {
 
-        delegate void Cross(ref Test test);
+        delegate void Cross(ref SimpleTest test);
         delegate T Pipeline<T>(T obj);
 
 
@@ -52,9 +52,9 @@ int pipeline(int a)
             Console.WriteLine(re2(10));
 
             var cross = Dynasor.CompileWithoutCache<Cross>(@"
-void cross(ref Test t)
+void cross(ref SimpleTest t)
     =>t.Append(""Okay"");");
-            var test = new Test("Not");
+            var test = new SimpleTest("Not");
             cross(ref test);
             Console.WriteLine(test);
 

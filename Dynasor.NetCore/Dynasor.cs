@@ -4,6 +4,7 @@ namespace Dynasor.NetCore
     using Microsoft.CodeAnalysis;
     using Microsoft.CodeAnalysis.CSharp;
     using Microsoft.CodeAnalysis.CSharp.Syntax;
+
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
@@ -57,7 +58,7 @@ namespace Dynasor.NetCore
             namespaces.Clear();
         }
 
-        private static Type BuildDelegateType(Assembly assembly, MethodInfo mi)
+        private static Type BuildDynamicDelegateType(Assembly assembly, MethodInfo mi)
         {
             const MethodAttributes Public_HideBySig = MethodAttributes.Public | MethodAttributes.HideBySig;
             var asmb = AssemblyBuilder.DefineDynamicAssembly(assembly.GetName(), AssemblyBuilderAccess.Run);
@@ -101,7 +102,7 @@ namespace Dynasor.NetCore
                         var mds = root.DescendantNodes().OfType<MethodDeclarationSyntax>().First();
                         var methodName = mds.Identifier.ToString();
                         
-                        var delegateType = BuildDelegateType(assembly, type.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static));
+                        var delegateType = BuildDynamicDelegateType(assembly, type.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static));
 
                         var dele = Delegate.CreateDelegate(delegateType, type, methodName, false, true);
 
@@ -166,7 +167,6 @@ namespace Dynasor.NetCore
                     }
                     catch (Exception e)
                     {
-
                         throw e;
                     }
                 }
