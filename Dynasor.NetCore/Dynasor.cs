@@ -1,5 +1,4 @@
-﻿
-namespace Dynasor.NetCore
+﻿namespace Dynasor.NetCore
 {
     using Microsoft.CodeAnalysis;
     using Microsoft.CodeAnalysis.CSharp;
@@ -15,22 +14,21 @@ namespace Dynasor.NetCore
     using System.Runtime.Loader;
     using System.Text;
 
-    public static class Dynasor
+    internal static class CodeScriptor
     {
-
-        private static string Using(string ns)
+        internal static string Using(string ns)
         {
-            return string.IsNullOrWhiteSpace(ns) ? string.Empty : $"using {ns};";
+            return string.IsNullOrWhiteSpace(ns)
+                ? string.Empty
+                : $"using {ns};";
         }
 
-        private static string RandomString()
+        internal static string RandomString()
         {
-            return "_" + Guid.NewGuid().ToString().Replace("-", null);            
+            return "_" + Guid.NewGuid().ToString().Replace("-", null);
         }
 
-        private static readonly CSharpCompilationOptions s_options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);
-
-        private static void AppendRefs(StringBuilder sb, out HashSet<MetadataReference> references)
+        internal static void AppendRefs(StringBuilder sb, out HashSet<MetadataReference> references)
         {
             var namespaces = new HashSet<string>();
             references = new HashSet<MetadataReference>();
@@ -58,35 +56,64 @@ namespace Dynasor.NetCore
             namespaces.Clear();
         }
 
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="className"></param>
+        /// <param name="method">The code of the method.</param>
+        /// <param name="references"></param>
+        /// <returns></returns>
+        internal static string GeneratePage(string className, IEnumerable<string> method, out HashSet<MetadataReference> references)
+        {
+            var sb = new StringBuilder();
+
+            AppendRefs(sb, out references);
+
+            sb.Append($"public static class {className}{{");
+            foreach (var m in method)
+            {
+                sb.AppendLine(m);
+            }
+            sb.Append("}");
+
+            return sb.ToString();
+        }
+    }
+    
+    public static class Dynasor
+    {
+        private static readonly CSharpCompilationOptions s_options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);
+        private const MethodAttributes PUBLIC_HIDEBYSIG = MethodAttributes.Public | MethodAttributes.HideBySig;
         private static Type BuildDynamicDelegateType(Assembly assembly, MethodInfo mi)
         {
-            const MethodAttributes Public_HideBySig = MethodAttributes.Public | MethodAttributes.HideBySig;
             var asmb = AssemblyBuilder.DefineDynamicAssembly(assembly.GetName(), AssemblyBuilderAccess.Run);
             var modb = asmb.DefineDynamicModule("#");
             var typeTemplate = modb.DefineType($"#{Guid.NewGuid()}", TypeAttributes.Sealed | TypeAttributes.Public, typeof(MulticastDelegate));
-            var ctor = typeTemplate.DefineConstructor(MethodAttributes.RTSpecialName | Public_HideBySig, CallingConventions.Standard, new[] { typeof(object), typeof(IntPtr) });
+            var ctor = typeTemplate.DefineConstructor(MethodAttributes.RTSpecialName | PUBLIC_HIDEBYSIG, CallingConventions.Standard, new[] { typeof(object), typeof(IntPtr) });
             ctor.SetImplementationFlags(MethodImplAttributes.CodeTypeMask);
+
             var delegateParameters = Array.ConvertAll(mi.GetParameters(), x => x.ParameterType);
-            var invoke = typeTemplate.DefineMethod("Invoke", MethodAttributes.Virtual | Public_HideBySig, mi.ReturnType, delegateParameters);
+
+            var invoke = typeTemplate.DefineMethod("Invoke", MethodAttributes.Virtual | PUBLIC_HIDEBYSIG, mi.ReturnType, delegateParameters);
             invoke.SetImplementationFlags(MethodImplAttributes.CodeTypeMask);
             for (int i = delegateParameters.Length; i > 0;)
                 invoke.DefineParameter(i--, ParameterAttributes.None, delegateParameters[i].Name);
+
             var delegateType = typeTemplate.CreateType();
             return delegateType;
         }
          
         public static dynamic CompileWithoutCache(string code)
         {
-            var sb = new StringBuilder();
+            var className = CodeScriptor.RandomString();
 
-            AppendRefs(sb, out var references);
-            var className = RandomString();
-            sb.Append($"public static class {className}").Append("{").AppendLine("public static " + code).Append("}");
+            var sb = CodeScriptor.GeneratePage(className, new[] { code }, out var references);
 
-
-            var tree = CSharpSyntaxTree.ParseText(sb.ToString());
+            var tree = CSharpSyntaxTree.ParseText(sb);
             var root = tree.GetCompilationUnitRoot();
             var junk = Path.GetRandomFileName();
+
             var compilation = CSharpCompilation.Create(junk, new[] { tree }, references, s_options);
 
             using (var binaryStream = new MemoryStream())
@@ -99,6 +126,7 @@ namespace Dynasor.NetCore
                         binaryStream.Seek(0, SeekOrigin.Begin);
                         var assembly = AssemblyLoadContext.Default.LoadFromStream(binaryStream);
                         var type = assembly.GetType(className, true);
+
                         var mds = root.DescendantNodes().OfType<MethodDeclarationSyntax>().First();
                         var methodName = mds.Identifier.ToString();
                         
@@ -133,17 +161,10 @@ namespace Dynasor.NetCore
         public static T CompileWithoutCache<T>(string code)
             where T : Delegate
         {
-            var sb = new StringBuilder();
+            var className = CodeScriptor.RandomString();
+            var sb = CodeScriptor.GeneratePage(className, new[] { code }, out var references);
 
-            AppendRefs(sb, out var references);
-            var className = RandomString();
-            sb.Append($"public static class {className}")
-                .Append("{")
-                .AppendLine("public static " + code)
-                .Append("}");
-
-
-            var tree = CSharpSyntaxTree.ParseText(sb.ToString());
+            var tree = CSharpSyntaxTree.ParseText(sb);
             var root = tree.GetCompilationUnitRoot();
             var junk = Path.GetRandomFileName();
             var compilation = CSharpCompilation.Create(junk, new[] { tree }, references, s_options);

@@ -33,6 +33,12 @@ namespace Dynasor.NetCore
 
         static void Main(string[] args)
         {
+            var sym = new Symbol("A").Return();
+
+
+            Console.ReadKey(    );
+            return;
+
             var add = Dynasor.CompileWithoutCache("int add(int a, int b)=>a+b;");
             Console.WriteLine(add(1, 2));
 
