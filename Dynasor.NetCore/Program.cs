@@ -26,46 +26,33 @@ namespace Dynasor.NetCore
 
     class Program
     {
-
         delegate void Cross(ref SimpleTest test);
         delegate T Pipeline<T>(T obj);
 
 
         static void Main(string[] args)
         {
-            var sym = new Symbol("A").Return();
 
+            var dc = Dynasor.Invoke(new[]
+            {
+                @"static void a()=>Console.WriteLine(19);",
+                "static void b(ref int i)=>Console.WriteLine(i+=2);",
+                "static void c(out int i)=>i = 100;"
+            });
 
-            Console.ReadKey(    );
-            return;
+            var aa = dc.Invoke("a");
+            aa();
+            var i = 555;
+            var bb = dc.Invoke("b");
+            bb(ref i);
 
-            var add = Dynasor.CompileWithoutCache("int add(int a, int b)=>a+b;");
-            Console.WriteLine(add(1, 2));
-
-            var code = @"
-void o(object o)
-    => Console.WriteLine(o);";
-            var o = Dynasor.CompileWithoutCache<Action<object>>(code);
-            o("Hello");
-
-
-            var pipeline = new Dynasor<Pipeline<int>>(@"
-int pipeline(int a)
-{
-    return a+20;
-}");
-            var re2 = pipeline.Compile();
-            Console.WriteLine(re2(10));
-
-            var cross = Dynasor.CompileWithoutCache<Cross>(@"
-void cross(ref SimpleTest t)
-    =>t.Append(""Okay"");");
-            var test = new SimpleTest("Not");
-            cross(ref test);
-            Console.WriteLine(test);
-
+            var cc = dc.Invoke("c");
+            var k = 0;
+            cc(ref k);
+            Console.WriteLine(k);
 
             Console.ReadKey();
+
         }
     }
 }
