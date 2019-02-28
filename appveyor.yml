@@ -1,17 +1,22 @@
+version: '1.0.{build}'
 image: Visual Studio 2017
-
-before_build:
-    - nuget restore
-
-platform:
-    # - x86
-    # - x64
-    - Any CPU
-
-configuration:
-    - Debug
-    - Release
-
 branches:
-    only:
-    - master
+  only:
+  - master
+init:
+  - cmd: git config --global core.autocrlf true
+install:
+  # Install repo specific stuff here
+before_build:
+  - cmd: dotnet --version
+  - cmd: dotnet restore ./Dynasor.NetCore/Dynasor.NetCore.csproj --verbosity m
+build_script:
+  - cmd: dotnet publish ./Dynasor.NetCore/Dynasor.NetCore.csproj
+clone_depth: 1
+test_script:
+  - cmd: dotnet restore ./Dynasor.Test/Dynasor.Test.csproj --verbosity m
+  - cmd: cd tests
+  - cmd: dotnet xunit
+on_finish :
+  # any cleanup in here
+deploy: off
