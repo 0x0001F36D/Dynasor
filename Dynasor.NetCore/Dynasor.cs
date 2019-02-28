@@ -1,4 +1,19 @@
-﻿namespace Dynasor.NetCore
+﻿/*
+    Copyright 2019 Viyrex
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+*/
+namespace Dynasor.NetCore
 {
     using Microsoft.CodeAnalysis;
     using Microsoft.CodeAnalysis.CSharp;
@@ -13,107 +28,21 @@
     using System.Reflection.Emit;
     using System.Runtime.CompilerServices;
     using System.Runtime.Loader;
-    using System.Text;
     using System.Threading;
-
-    internal static class CodeSnippet
-    {
-        internal static string Using(string ns)
-        {
-            return string.IsNullOrWhiteSpace(ns)
-                ? string.Empty
-                : $"using {ns};";
-        }
-
-        internal static string RandomString()
-        {
-            return "_" + Guid.NewGuid().ToString().Replace("-", null);
-        }
-
-        internal static void AppendRefs(StringBuilder sb, out HashSet<MetadataReference> references)
-        {
-            var namespaces = new HashSet<string>();
-            references = new HashSet<MetadataReference>();
-
-            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                if (assembly.IsDynamic)
-                    continue;
-
-                if (!string.IsNullOrWhiteSpace(assembly.Location) && references.Add(MetadataReference.CreateFromFile(assembly.Location)))
-                {
-                    var nss = from type in assembly.GetTypes()
-                              let
-                                ns = type.Namespace
-                              where
-                                  type.IsPublic &&
-                                  !ns.Contains("Internal", StringComparison.CurrentCultureIgnoreCase) &&
-                                  namespaces.Add(ns)
-                              select ns;
-
-                    foreach (var ns in nss)
-                        sb.Append(Using(ns));
-                }
-            }
-            namespaces.Clear();
-        }
-
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="className"></param>
-        /// <param name="method">The code of the method.</param>
-        /// <param name="references"></param>
-        /// <returns></returns>
-        internal static string GeneratePage(string className, IEnumerable<string> method, out HashSet<MetadataReference> references)
-        {
-            var sb = new StringBuilder();
-
-            AppendRefs(sb, out references);
-
-            sb.Append($"internal class {className}{{");
-            foreach (var m in method)
-            {
-                sb.AppendLine(m);
-            }
-            sb.Append("}");
-
-            return sb.ToString();
-        }
-        
-    }
-
-    public class DelegateCollection
-    {
-        private readonly IDictionary<string, Delegate> _collection;
-
-        internal DelegateCollection(IDictionary<string, Delegate> collection)
-        {
-            this._collection = collection ?? throw new ArgumentNullException(nameof(collection));
-            foreach (var d in this._collection)
-            {
-                Console.WriteLine((d.Key, d.Value.ToString(), d.Value.Method));
-            }
-        }
-
-        public dynamic Invoke(string name)
-        {
-            if (this._collection.TryGetValue(name, out var d))
-            {
-                return d;
-            }
-            throw new InvalidOperationException();
-        }
-    }
-
-
 
     public static class Dynasor
     {
-        private static readonly CSharpCompilationOptions s_options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);
-        private const MethodAttributes PUBLIC_HIDEBYSIG = MethodAttributes.Public | MethodAttributes.HideBySig;
-        private const BindingFlags PUBLIC_NONPUBLIC_STATIC = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
+        private static readonly CSharpCompilationOptions s_options = 
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);
+
+        private const MethodAttributes PUBLIC_HIDEBYSIG = 
+            MethodAttributes.Public | 
+            MethodAttributes.HideBySig;
+
+        private const BindingFlags PUBLIC_NONPUBLIC_STATIC = 
+            BindingFlags.NonPublic | 
+            BindingFlags.Static | 
+            BindingFlags.Public;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static Type BuildDynamicDelegateType(Assembly assembly, Type type, string methodName)
@@ -125,7 +54,6 @@
             var typeTemplate = modb.DefineType($"#{Guid.NewGuid()}", TypeAttributes.Sealed | TypeAttributes.Public, typeof(MulticastDelegate));
             var ctor = typeTemplate.DefineConstructor(MethodAttributes.RTSpecialName | PUBLIC_HIDEBYSIG, CallingConventions.Standard, new[] { typeof(object), typeof(IntPtr) });
             ctor.SetImplementationFlags(MethodImplAttributes.CodeTypeMask);
-
 
             var delegateParameters = Array.ConvertAll(mi.GetParameters(), x => x.ParameterType);
 
@@ -139,8 +67,7 @@
         }
         
         private delegate Type DynamicDelegateBuilder(Assembly assembly,Type type, string methodName);
-
-
+        
         [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static IDictionary<string, Delegate> Compile(
@@ -151,6 +78,8 @@
             var className = CodeSnippet.RandomString();
             var sb = CodeSnippet.GeneratePage(className,codes, out var references);
 
+            Debug.WriteLine(sb);
+
             var tree = CSharpSyntaxTree.ParseText(sb, cancellationToken: token);
             var root = tree.GetCompilationUnitRoot(cancellationToken: token);
             var junk = Path.GetRandomFileName();
@@ -159,8 +88,8 @@
 
             using (var binaryStream = new MemoryStream())
             {
-                var emitResult = compilation.Emit(binaryStream, cancellationToken: token);
-                if (emitResult.Success)
+                var compilationResult = compilation.Emit(binaryStream, cancellationToken: token);
+                if (compilationResult.Success)
                 {
                     binaryStream.Seek(0, SeekOrigin.Begin);
                     var assembly = AssemblyLoadContext.Default.LoadFromStream(binaryStream);
@@ -178,15 +107,16 @@
                 }
                 else
                 {
-                    var failures = from d in emitResult.Diagnostics
-                                   where d.IsWarningAsError || d.Severity == DiagnosticSeverity.Error
+                    var failures = from d in compilationResult.Diagnostics
+                                   where d.IsWarningAsError || d.Severity.Equals(DiagnosticSeverity.Error)
                                    select d;
+
                     throw new CompilationException(failures.ToArray());
                 }
 
             }
         }
-        
+
 
         public static T Invoke<T>(string code, CancellationToken token = default) where T : Delegate
             => Compile(new[] { code }, (a, t, n) => typeof(T), token).First().Value as T;
@@ -194,10 +124,8 @@
         public static dynamic Invoke(string code, CancellationToken token = default)
             => Compile(new[] { code }, BuildDynamicDelegateType, token).First().Value;
 
-
-        public static DelegateCollection Invoke(IEnumerable<string> code, CancellationToken token = default)
-        {
-            return new DelegateCollection(Compile(code, BuildDynamicDelegateType, token));
-        }
+        public static dynamic Invoke(IEnumerable<string> code, CancellationToken token = default)
+            => new DelegateCollection(Compile(code, BuildDynamicDelegateType, token));
+        
     }
 }
