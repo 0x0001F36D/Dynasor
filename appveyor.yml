@@ -10,7 +10,7 @@ platform:
 
 configuration:
     - Debug
-    # - Release
+    - Release
 
 branches:
     only:

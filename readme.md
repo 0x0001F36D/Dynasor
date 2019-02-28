@@ -2,7 +2,7 @@
 
 
 ## 概要
-  > 這個儲存庫 **Dynasor** [ˋdaInәˏsɒr] 意在解決
+  >  **Dynasor** [ˋdaInәˏsɒr] 這個儲存庫意在解決
   - 熱更新
   - .NET組件/模組動態抽換
   - On-The-Fly code
