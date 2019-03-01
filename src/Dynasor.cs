@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 */
-namespace Dynasor.NetCore
+namespace Dynasor
 {
     using Microsoft.CodeAnalysis;
     using Microsoft.CodeAnalysis.CSharp;
@@ -22,6 +22,7 @@ namespace Dynasor.NetCore
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
+    using System.Globalization;
     using System.IO;
     using System.Linq;
     using System.Reflection;
@@ -29,7 +30,7 @@ namespace Dynasor.NetCore
     using System.Runtime.CompilerServices;
     using System.Runtime.Loader;
     using System.Threading;
-
+    
     public static class Dynasor
     {
         private static readonly CSharpCompilationOptions s_options = 
@@ -113,7 +114,6 @@ namespace Dynasor.NetCore
 
                     throw new CompilationException(failures.ToArray());
                 }
-
             }
         }
 

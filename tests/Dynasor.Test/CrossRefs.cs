@@ -15,7 +15,6 @@
 */
 namespace Dynasor.Test
 {
-    using Dynasor.NetCore;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using System;
 

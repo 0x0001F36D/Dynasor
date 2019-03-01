@@ -13,7 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Dynasor.NetCore\Dynasor.NetCore.csproj" />
+    <ProjectReference Include="..\..\src\Dynasor.csproj" />
   </ItemGroup>
 
 </Project>

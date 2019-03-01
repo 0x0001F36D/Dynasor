@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 */
-namespace Dynasor.NetCore
+namespace Dynasor
 {
     using Microsoft.CodeAnalysis;
 
@@ -94,12 +94,11 @@ namespace Dynasor.NetCore
 
         internal static string RemoveModifier(string code)
         {
-            var nonInjected = true;
+            var nonInjected = 0;
             var re = Regex.Replace(code, @"((" + captureModifiers + "|" + ignoreModifiers + @")\s+?)*", m =>
                  {
-                     if(nonInjected)
+                     if(nonInjected++ == 1)
                      {
-                         nonInjected = false;
                          return "static ";
                      }
 
