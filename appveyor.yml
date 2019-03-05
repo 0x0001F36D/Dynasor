@@ -3,9 +3,7 @@ image: Visual Studio 2017
 branches:
   only:
   - master
-environment:
-  auth_token:
-    secure: dmIIksNsZYScvxCXQpkGbBLVRuP9QAAzZt8oS8Y3fv5NIMBp+a3okbVJHoZsrBSo
+
 init:
   - cmd: git config --global core.autocrlf true
 before_build:
@@ -26,6 +24,7 @@ deploy:
   - provider: GitHub
     artifact: /.*\.zip/           
     draft: false
+    auth_token: dmIIksNsZYScvxCXQpkGbBLVRuP9QAAzZt8oS8Y3fv5NIMBp+a3okbVJHoZsrBSo
     prerelease: false
     on:
       branch: master
