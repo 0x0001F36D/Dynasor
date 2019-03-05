@@ -5,6 +5,7 @@ VisualStudioVersion = 15.0.28010.2036
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{FA5BF5BF-FAAA-4917-9373-DA16641152E9}"
 	ProjectSection(SolutionItems) = preProject
+		.license = .license
 		appveyor.yml = appveyor.yml
 		readme.md = readme.md
 	EndProjectSection
@@ -13,7 +14,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dynasor", "src\Dynasor.cspr
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dynasor.Test", "tests\Dynasor.Test\Dynasor.Test.csproj", "{0AAA17F2-2C49-4579-8CF6-B245544230E9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dynasor.ConsoleTest", "tests\Dynasor.ConsoleTest\Dynasor.ConsoleTest.csproj", "{C58998F0-9C80-4CFE-911D-E4ADB3131751}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dynasor.ConsoleTest", "tests\Dynasor.ConsoleTest\Dynasor.ConsoleTest.csproj", "{C58998F0-9C80-4CFE-911D-E4ADB3131751}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
