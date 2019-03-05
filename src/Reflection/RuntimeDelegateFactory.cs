@@ -1,21 +1,12 @@
 ﻿
-namespace Dynasor
+namespace Dynasor.Reflection
 {
-    using Microsoft.CodeAnalysis;
-    using Microsoft.CodeAnalysis.CSharp;
-    using Microsoft.CodeAnalysis.CSharp.Syntax;
 
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
-    using System.IO;
-    using System.Linq;
     using System.Reflection;
     using System.Reflection.Emit;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.Loader;
-    using System.Text;
-    using System.Threading;
 
     public static class RuntimeDelegateFactory
     {
@@ -89,21 +80,22 @@ namespace Dynasor
         }
 
         private static readonly Type[] s_delegateConstructSignature = { typeof(object), typeof(IntPtr) };
-        
+
         public static Delegate StaticMethod(Type target, string methodName)
         {
-            return BindingMethond(target, methodName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
-        }
-        private static Delegate BindingMethond(object target, string methodName, BindingFlags flags)
-        {
-            var m = target.GetType().GetMethod(methodName, flags);
+
+            var m = target.GetMethod(methodName, (BindingFlags)48 | BindingFlags.Static);
             var dt = MockRuntimeDelegateType(m);
             var dele = Delegate.CreateDelegate(dt, target, methodName);
             return dele;
         }
+
         public static Delegate InstanceMethod(object target, string methodName)
         {
-            return BindingMethond(target, methodName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            var m = target.GetType().GetMethod(methodName, (BindingFlags)48 | BindingFlags.Instance);
+            var dt = MockRuntimeDelegateType(m);
+            var dele = Delegate.CreateDelegate(dt, target, methodName);
+            return dele;
         }
 
         public static Type MockRuntimeDelegateType(MethodInfo mi)
@@ -142,105 +134,6 @@ namespace Dynasor
             var delegateType = typeTemplate.CreateType();            
             s_caches.Add(sign, delegateType);
             return delegateType;
-        }
-
-
-    }
-
-    public static class SnippetCaches
-    {
-        internal static readonly HashSet<MetadataReference> References;
-        public static StringBuilder CreateNewSnippet()
-        {
-            return new StringBuilder(s_result);
-        }
-        
-        private static readonly string s_result;
-        static SnippetCaches()
-        {
-            AppendRefs(out var result, out var refs);
-            s_result = result;
-            References = refs;
-        }
-
-
-        private static string Using(string ns)
-        {
-            return string.IsNullOrWhiteSpace(ns)
-                ? string.Empty
-                : $"using {ns};\r\n";
-        }
-        
-        private static void AppendRefs(out string result, out HashSet<MetadataReference> references)
-        {
-            var sb = new StringBuilder();
-            var namespaces = new HashSet<string>();
-            references = new HashSet<MetadataReference>();
-
-            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                if (assembly.IsDynamic)
-                    continue;
-
-                if (!string.IsNullOrWhiteSpace(assembly.Location) && 
-                    references.Add(MetadataReference.CreateFromFile(assembly.Location)))
-                {
-                    var nss = from type in assembly.GetTypes()
-                              let
-                                ns = type.Namespace
-                              where
-                                type.IsPublic &&
-                                !ns.Contains("Internal", StringComparison.CurrentCultureIgnoreCase) &&
-                                namespaces.Add(ns)
-                              select ns;
-
-                    foreach (var ns in nss)
-                        sb.Append(Using(ns));
-                }
-            }
-            namespaces.Clear();
-            result = sb.ToString();
-        }
-
-    }
-
-    internal static class Roslyn
-    {
-        private static readonly CSharpCompilationOptions s_options = new CSharpCompilationOptions((OutputKind)2);
-
-        [DebuggerStepThrough]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static Diagnostic[] TryCompile(
-            string pageOfTheCSharpCode,
-            IEnumerable<MetadataReference> references,
-            out Assembly assembly,
-            out CompilationUnitSyntax root,
-            CancellationToken token = default)
-        {
-            var tree = CSharpSyntaxTree.ParseText(pageOfTheCSharpCode, cancellationToken: token);
-            root = tree.GetCompilationUnitRoot(cancellationToken: token);
-            var junk = Path.GetRandomFileName();
-
-            var compilation = CSharpCompilation.Create(junk, new[] { tree }, references, s_options);
-
-            using (var binaryStream = new MemoryStream())
-            {
-                var compilationResult = compilation.Emit(binaryStream, cancellationToken: token);
-                if (compilationResult.Success)
-                {
-                    binaryStream.Seek(0, SeekOrigin.Begin);
-                    assembly = AssemblyLoadContext.Default.LoadFromStream(binaryStream);
-                    return Array.Empty<Diagnostic>();
-                }
-                else
-                {
-                    var failures = from d in compilationResult.Diagnostics
-                                   where d.IsWarningAsError || d.Severity.Equals(DiagnosticSeverity.Error)
-                                   select d;
-                    assembly = default;
-                    return failures.ToArray();
-                }
-            }
         }
 
 

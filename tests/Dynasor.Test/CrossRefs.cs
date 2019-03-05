@@ -39,10 +39,12 @@ namespace Dynasor.Test
         [TestMethod]
         public void Reference()
         {
-            var test = Dynasor.Invoke<Creator<TestClass>>(@"TestClass test() => new TestClass(""123"");");
-            var d = test();
-            Assert.IsInstanceOfType(d, typeof(TestClass));
-            Assert.AreEqual(d.ToString(), "123");
+            using (var test = Dynasor.Compile<Creator<TestClass>>(@"TestClass test() => new TestClass(""123"");"))
+            {
+                var d = test.Method();
+                Assert.IsInstanceOfType(d, typeof(TestClass));
+                Assert.AreEqual(d.ToString(), "123");
+            }
         }
     }
 }

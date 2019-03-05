@@ -15,15 +15,17 @@
 */
 namespace Dynasor
 {
+    using global::Dynasor.CodeAnalysis;
     using Microsoft.CodeAnalysis;
 
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Linq;
     using System.Text;
     using System.Text.RegularExpressions;
 
-    internal static class CodeSnippet
+    public static class CodeSnippet
     {
         internal static string Using(string ns)
         {
@@ -73,7 +75,7 @@ namespace Dynasor
         /// <param name="method">The code of the method.</param>
         /// <param name="references"></param>
         /// <returns></returns>
-        internal static string GeneratePage(string className, IEnumerable<string> method, out HashSet<MetadataReference> references)
+        public static string GeneratePage(string className, IEnumerable<string> method, out HashSet<MetadataReference> references)
         {
             var sb = new StringBuilder();
 
@@ -82,35 +84,19 @@ namespace Dynasor
             sb.Append($"internal class {className}{{");
             foreach (var m in method)
             {
-                sb.AppendLine(RemoveModifier(m));
+                if (MethodAutoCorrection.FixMethodModifiers(m, out var r, out var _))
+                {
+                    sb.AppendLine(r);
+                }
+                else
+                {
+                    throw new InvalidOperationException("Syntax error.");
+                }
             }
             sb.Append("}");
 
             return sb.ToString();
         }
-
-        private const string captureModifiers = "extern";
-        private const string ignoreModifiers = "static|abstract|override|virtual|public|internal|protected|private";
-
-        internal static string RemoveModifier(string code)
-        {
-            var nonInjected = 0;
-            var re = Regex.Replace(code, @"((" + captureModifiers + "|" + ignoreModifiers + @")\s+?)*", m =>
-                 {
-                     if(nonInjected++ == 1)
-                     {
-                         return "static ";
-                     }
-
-                     var v = m.Value;
-                     if (string.IsNullOrWhiteSpace(v))
-                         return null;
-                     var rr = "private " + (v.Contains(captureModifiers) ? "extern " : null);
-                     
-                     return rr;
-                 }, 
-                 RegexOptions.IgnorePatternWhitespace);
-            return re;
-        }
+        
     }
 }

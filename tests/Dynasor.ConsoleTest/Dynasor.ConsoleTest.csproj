@@ -3,7 +3,17 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.1</TargetFramework>
+    <LangVersion>7.1</LangVersion>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="4r0qbu3h.vpj~" />
+    <None Remove="Program.cs~RF53d12694.TMP" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.Common" Version="2.10.0" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Dynasor.csproj" />

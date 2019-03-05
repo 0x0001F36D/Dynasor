@@ -27,7 +27,7 @@ namespace Dynasor.Test
         {
             try
             {
-                var add = Dynasor.Invoke("int add(int a, int b)=>a+b;");
+                var add = Dynasor.Compile("int add(int a, int b)=>a+b;");
                 Assert.AreEqual(add(1, 2), 3);
             }
             catch (CompilationException)
@@ -41,8 +41,8 @@ namespace Dynasor.Test
         {
             try
             {
-                var add = Dynasor.Invoke<Func<int,int,int>>("int add(int a, int b)=>a+b;");
-                Assert.AreEqual(add(1, 2), 3);
+                using (var add = Dynasor.Compile<Func<int, int, int>>("int add(int a, int b)=>a+b;"))
+                    Assert.AreEqual(add.Method(1, 2), 3);
             }
             catch (CompilationException)
             {
@@ -50,12 +50,13 @@ namespace Dynasor.Test
             }
         }
 
+        /*
         [TestMethod]
         public void TestMethod3()
         {
             try
             {
-                var o = Dynasor.Invoke(new string[]
+                var o = Dynasor.Compile(new string[]
                 {
                     "int add(int a, int b)=>a+b;",
                     "int sub(int a, int b)=>a-b;"
@@ -68,5 +69,6 @@ namespace Dynasor.Test
                 Assert.Fail();
             }
         }
+        */
     }
 }

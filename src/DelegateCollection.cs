@@ -19,6 +19,7 @@ namespace Dynasor
     using System.Collections.Generic;
     using System.Dynamic;
 
+    [Obsolete]
     internal sealed class DelegateCollection : DynamicObject
     {
         private readonly IDictionary<string, Delegate> _collection;

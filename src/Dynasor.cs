@@ -15,117 +15,164 @@
 */
 namespace Dynasor
 {
-    using Microsoft.CodeAnalysis;
-    using Microsoft.CodeAnalysis.CSharp;
-    using Microsoft.CodeAnalysis.CSharp.Syntax;
-
+    using global::Dynasor.CodeAnalysis;
     using System;
-    using System.Collections.Generic;
+    using System.ComponentModel;
     using System.Diagnostics;
-    using System.Globalization;
-    using System.IO;
-    using System.Linq;
-    using System.Reflection;
-    using System.Reflection.Emit;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.Loader;
     using System.Threading;
-    
+    using System.Threading.Tasks;
+    using global::Dynasor.Compiler;
+    using System.Collections.Generic;
+    using global::Dynasor.Reflection;
+
     public static class Dynasor
-    {
-        private static readonly CSharpCompilationOptions s_options = 
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);
+    { 
 
-        private const MethodAttributes PUBLIC_HIDEBYSIG = 
-            MethodAttributes.Public | 
-            MethodAttributes.HideBySig;
 
-        private const BindingFlags PUBLIC_NONPUBLIC_STATIC = 
-            BindingFlags.NonPublic | 
-            BindingFlags.Static | 
-            BindingFlags.Public;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static Type BuildDynamicDelegateType(Assembly assembly, Type type, string methodName)
-        {
-            var mi = type.GetMethod(methodName, PUBLIC_NONPUBLIC_STATIC);
-
-            var asmb = AssemblyBuilder.DefineDynamicAssembly(assembly.GetName(), AssemblyBuilderAccess.Run);
-            var modb = asmb.DefineDynamicModule("#");
-            var typeTemplate = modb.DefineType($"#{Guid.NewGuid()}", TypeAttributes.Sealed | TypeAttributes.Public, typeof(MulticastDelegate));
-            var ctor = typeTemplate.DefineConstructor(MethodAttributes.RTSpecialName | PUBLIC_HIDEBYSIG, CallingConventions.Standard, new[] { typeof(object), typeof(IntPtr) });
-            ctor.SetImplementationFlags(MethodImplAttributes.CodeTypeMask);
-
-            var delegateParameters = Array.ConvertAll(mi.GetParameters(), x => x.ParameterType);
-
-            var invoke = typeTemplate.DefineMethod("Invoke", MethodAttributes.Virtual | PUBLIC_HIDEBYSIG, mi.ReturnType, delegateParameters);
-            invoke.SetImplementationFlags(MethodImplAttributes.CodeTypeMask);
-            for (int i = delegateParameters.Length; i > 0;)
-                invoke.DefineParameter(i--, ParameterAttributes.None, delegateParameters[i].Name);
-
-            var delegateType = typeTemplate.CreateType();
-            return delegateType;
-        }
-        
-        private delegate Type DynamicDelegateBuilder(Assembly assembly,Type type, string methodName);
-        
         [DebuggerStepThrough]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static IDictionary<string, Delegate> Compile(
-            IEnumerable<string> codes, 
-            DynamicDelegateBuilder delegateTypeCreator,
-            CancellationToken token)
+        public static dynamic Compile(CotMethod cotMethod, CancellationToken token = default)
         {
-            var className = CodeSnippet.RandomString();
-            var sb = CodeSnippet.GeneratePage(className,codes, out var references);
+            var rndClass = CodeSnippet.RandomString();
+            var pageOfCode = CodeSnippet.GeneratePage(rndClass, new[] { cotMethod.ToString() }, out var refs);
 
-            Debug.WriteLine(sb);
+            var errors = Roslyn.Compile(pageOfCode, refs, out var asm, token);
 
-            var tree = CSharpSyntaxTree.ParseText(sb, cancellationToken: token);
-            var root = tree.GetCompilationUnitRoot(cancellationToken: token);
-            var junk = Path.GetRandomFileName();
-
-            var compilation = CSharpCompilation.Create(junk, new[] { tree }, references, s_options);
-
-            using (var binaryStream = new MemoryStream())
+            if (errors.Length == 0)
             {
-                var compilationResult = compilation.Emit(binaryStream, cancellationToken: token);
-                if (compilationResult.Success)
+                var t = asm.GetType(rndClass);
+                try
                 {
-                    binaryStream.Seek(0, SeekOrigin.Begin);
-                    var assembly = AssemblyLoadContext.Default.LoadFromStream(binaryStream);
-                    var type = assembly.GetType(className, true);
-                    var list = new Dictionary<string, Delegate>();
-                    foreach (var md in root.DescendantNodes().OfType<MethodDeclarationSyntax>())
-                    {
-                        var methodName = md.Identifier.ToString();
-                        var delegateType = delegateTypeCreator(assembly, type, methodName);
-                        var dele = Delegate.CreateDelegate(delegateType, type, methodName, false, true);
-                        list.Add(methodName,dele);
-                    }
-
-                    return list;
+                    var mn = cotMethod.Info.Name.ValueText;
+                    var d = RuntimeDelegateFactory.StaticMethod(t, mn);
+                    return d;
                 }
-                else
+                catch (ArgumentException)
                 {
-                    var failures = from d in compilationResult.Diagnostics
-                                   where d.IsWarningAsError || d.Severity.Equals(DiagnosticSeverity.Error)
-                                   select d;
-
-                    throw new CompilationException(failures.ToArray());
+                    throw;
                 }
             }
+            throw new CompilationException(errors);
+
         }
 
 
-        public static T Invoke<T>(string code, CancellationToken token = default) where T : Delegate
-            => Compile(new[] { code }, (a, t, n) => typeof(T), token).First().Value as T;
+        /// <summary>
+        /// 執行期編譯
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="cotMethod"></param>
+        /// <returns></returns>
+        [DebuggerStepThrough]
+        public static DelegateWrapper<T> Compile<T>(CotMethod cotMethod, CancellationToken token = default) 
+            where T : Delegate
+        {
+            var rndClass = CodeSnippet.RandomString();
+            var pageOfCode = CodeSnippet.GeneratePage(rndClass, new[] { cotMethod.ToString() }, out var refs);
 
-        public static dynamic Invoke(string code, CancellationToken token = default)
-            => Compile(new[] { code }, BuildDynamicDelegateType, token).First().Value;
+            var errors = Roslyn.Compile(pageOfCode, refs, out var asm, token);
 
-        public static dynamic Invoke(IEnumerable<string> code, CancellationToken token = default)
-            => new DelegateCollection(Compile(code, BuildDynamicDelegateType, token));
-        
+            if (errors.Length == 0)
+            {
+                var t = asm.GetType(rndClass);
+                try
+                {
+                    var mn = cotMethod.Info.Name.ValueText;
+                    var d = Delegate.CreateDelegate(typeof(T), t, mn, false, true) as T;
+                    return new DelegateWrapper<T>(d, mn);
+                }
+                catch (ArgumentException)
+                {
+                    throw;
+                }
+            }
+            throw new CompilationException(errors);
+
+        }
+
+        private class Box
+        {
+        }
     }
+
+    public sealed class DelegateWrapper<T> : IDisposable
+        where T : Delegate 
+    {
+        private volatile T _dele;
+
+        internal DelegateWrapper(T dele, string name)
+        {
+            this._dele = dele;
+            this.Name = name;
+        }
+
+        public string Name { get; }
+
+
+        public T Method => this._dele;
+
+
+        public void Dispose()
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        }
+    }
+
+    /// <summary>
+    /// Code of the method.
+    /// </summary>
+    [DebuggerDisplay("{DebugString}")]
+    public sealed class CotMethod
+    {
+        private string DebugString => this._code;
+
+        internal MethodSignatureAbstractInfo Info { get; }
+
+        private readonly int _hash;
+        private readonly string _code;
+
+        private CotMethod(string code, MethodSignatureAbstractInfo info)
+        {
+            this._hash = code.GetHashCode();
+            this._code = code.ToString();
+            this.Info = info;
+        }
+
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public override string ToString() => this._code;
+
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public override int GetHashCode() => this._hash;
+
+        [DebuggerStepThrough]
+        [EditorBrowsable(EditorBrowsableState.Always)]
+        public static implicit operator CotMethod(string code)
+        { 
+            if (!MethodAutoCorrection.FixMethodModifiers(code, out code, out var info))
+            {
+                throw new FormatException("Input code was not in a correct C# method declaration syntax.");
+            }
+            return new CotMethod(code, info);
+        }
+
+        public static implicit operator CotMethod(ReadOnlySpan<char> code)
+            => code.ToString();
+
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public override bool Equals(object obj)
+        {
+            if (obj is string s)
+            {
+                return s.GetHashCode() == this.GetHashCode();
+            }
+            else if( obj is CotMethod c)
+            {
+                return c._hash == this.GetHashCode();
+            }
+            return false;
+        }
+    }
+    
+
+    
 }
