@@ -12,7 +12,7 @@ build_script:
   - cmd: dotnet publish ./src/Dynasor.csproj
 clone_depth: 1
 artifacts:
- - path: '\src\bin\Debug\netcoreapp1.1\publish'
+ - path: './src/bin/Debug/netcoreapp2.1/publish'
    name: Dynasor
    type: WebDeployPackage
 test_script:
