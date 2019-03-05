@@ -24,12 +24,11 @@ test_script:
   - cmd: dotnet test
 deploy:
   - provider: GitHub
-      artifact: /.*\.zip/           
-      draft: false
-      prerelease: false
-      on:
+    artifact: /.*\.zip/           
+    draft: false
+    prerelease: false
+    on:
       branch: master                # release from master branch only
       APPVEYOR_REPO_TAG: true       # deploy on tag push only
 
 on_finish :
-deploy: off
