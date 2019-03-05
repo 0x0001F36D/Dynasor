@@ -22,9 +22,10 @@ test_script:
   - cmd: dotnet test
 deploy:
   - provider: GitHub
+    auth_token:
+      secure: FPMfddISmTT7XWuL8vW0FjGoallTHrUAvFGFjxbhS95XA4JjEtUdW5jGkHNTMVG0
     artifact: /.*\.zip/           
     draft: false
-    auth_token: FPMfddISmTT7XWuL8vW0FjGoallTHrUAvFGFjxbhS95XA4JjEtUdW5jGkHNTMVG0
     prerelease: false
     on:
       branch: master
