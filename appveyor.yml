@@ -3,6 +3,9 @@ image: Visual Studio 2017
 branches:
   only:
   - master
+environment:
+  my_variable:
+    secure: dmIIksNsZYScvxCXQpkGbBLVRuP9QAAzZt8oS8Y3fv5NIMBp+a3okbVJHoZsrBSo
 init:
   - cmd: git config --global core.autocrlf true
 before_build:
