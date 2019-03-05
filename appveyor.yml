@@ -4,7 +4,7 @@ branches:
   only:
   - master
 environment:
-  my_variable:
+  auth_token:
     secure: dmIIksNsZYScvxCXQpkGbBLVRuP9QAAzZt8oS8Y3fv5NIMBp+a3okbVJHoZsrBSo
 init:
   - cmd: git config --global core.autocrlf true
